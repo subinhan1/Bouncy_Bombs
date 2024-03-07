@@ -1,4 +1,3 @@
-#Attempting to separate classes into separate files
 import pymunk
 import pygame
 import pymunk.pygame_util
