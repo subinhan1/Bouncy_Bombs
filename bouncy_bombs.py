@@ -30,6 +30,8 @@ class BouncyBombs(object):
 
         self._enemies: List[pymunk.Poly] = []
 
+        self._kill_count = 0
+
         self._ticks_to_next_enemy = 5
 
         self._running = True
@@ -54,7 +56,7 @@ class BouncyBombs(object):
 
             self._process_events()
             self._add_player()
-            self._update_balls()
+            self._update_bombs()
             self._sense_damage()
             self._clear_screen()
             self._draw_objects()
@@ -127,7 +129,15 @@ class BouncyBombs(object):
                     pygame.Color("white")
                 ),
             (self._screen_size[0]/2 - 80, self._screen_size[1]/2 - 15)
-        )
+            )
+            self._screen.blit(
+                self._font2.render(
+                    "Kills: " + str(self._kill_count),
+                    1,
+                    pygame.Color("red")
+                ),
+            (self._screen_size[0]/2 - 40, self._screen_size[1]/2 + 20)
+            )
 
 
 
@@ -148,8 +158,12 @@ class BouncyBombs(object):
             enemy_shape = arbiter.shapes[1]
             self._space.remove(bomb_shape, bomb_shape.body, enemy_shape, enemy_shape.body)
             return True
+        def increase_kill_count(arbiter, space, data):
+            self._kill_count += 1
+            return True
         h_1.begin = remove_bomb_and_enemy
-
+        h_1.separate = increase_kill_count
+        
 
     def _damaged(self, arbiter, space, data):
         self._HP -= 20
@@ -170,7 +184,7 @@ class BouncyBombs(object):
                 self._create_low_bomb()
 
     
-    def _update_balls(self) -> None:
+    def _update_bombs(self) -> None:
         # Remove balls that exit the screen
         balls_to_remove = [ball for ball in self._bombs if 
                            ball.body.position.y < 0 
@@ -180,6 +194,7 @@ class BouncyBombs(object):
         for ball in balls_to_remove:
             self._space.remove(ball, ball.body)
             self._bombs.remove(ball)
+        
 
     #Create a bomb that launches with a high projectory
     def _create_high_bomb(self) -> None:
@@ -233,7 +248,6 @@ class BouncyBombs(object):
         shape.elasticity = 0.9
         shape.collision_type = self._collision_types["enemy"]
         body.velocity = pymunk.Vec2d(-50, 0)
-
         #After a certain time, speed up enemies to increase difficulty
         if pygame.time.get_ticks() > 25000:
             body.velocity = pymunk.Vec2d(-100, 0)
@@ -255,7 +269,6 @@ class BouncyBombs(object):
         shape.elasticity = 0.9
         shape.collision_type = self._collision_types["enemy"]
         body.velocity = pymunk.Vec2d(-100, 0)
-
         #After a certain time, speed up enemies to increase difficulty
         if pygame.time.get_ticks() > 25000:
             body.velocity = pymunk.Vec2d(-200, 0)
