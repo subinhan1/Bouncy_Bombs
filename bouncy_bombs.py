@@ -19,6 +19,7 @@ class BouncyBombs(object):
         pygame.init()
         self._screen_size = (600, 600)
         self._screen = pygame.display.set_mode(self._screen_size)
+        self._screen_title = pygame.display.set_caption("Bouncy Bombs")
         self._clock = pygame.time.Clock()
 
         self._draw_options = pymunk.pygame_util.DrawOptions(self._screen)
@@ -36,6 +37,7 @@ class BouncyBombs(object):
         self._font1 = pygame.font.SysFont("Arial", 14, True)
         self._font2 = pygame.font.SysFont("Arial", 26, True)
 
+        #Objects with the same collision type do not collide with each other
         self._collision_types = {
             "bomb" : 1,
             "player" : 2,
@@ -60,6 +62,7 @@ class BouncyBombs(object):
             self._show_HP()
             self._update_ground_enemy()
             self._update_air_enemy()
+            self._show_end_screen()
             pygame.display.flip()
 
             self._clock.tick(50)
@@ -76,6 +79,7 @@ class BouncyBombs(object):
 
         self._space.add(static_floor, static_wall)
 
+    #Add main player that cannot be hit
     def _add_player(self) -> None:
         static_body = self._space.static_body
         static_body.position = 35, self._screen_size[1]-25
@@ -110,9 +114,24 @@ class BouncyBombs(object):
                 1,
                 pygame.Color("red")
             ),
-            (self._screen_size[0]-150, 2)
+            (self._screen_size[0]-100, 2)
         )
 
+    def _show_end_screen(self) -> None:
+        if self._HP <= 0:
+            self._screen.fill(pygame.Color("black"))
+            self._screen.blit(
+                self._font2.render(
+                    "GAME OVER",
+                    1,
+                    pygame.Color("white")
+                ),
+            (self._screen_size[0]/2 - 80, self._screen_size[1]/2 - 15)
+        )
+
+
+
+    #Sense collisions, reduce HP and erase enemy
     def _sense_damage(self) -> None:
         """If enemy gets over the x<0 or collides with player, deplete HP and remove enemies"""
         h_0 = self._space.add_collision_handler(self._collision_types["player"], self._collision_types["enemy"])
@@ -133,7 +152,7 @@ class BouncyBombs(object):
 
 
     def _damaged(self, arbiter, space, data):
-        self._HP -= 10
+        self._HP -= 20
         return True
     
     #Process key presses/user input
@@ -156,7 +175,8 @@ class BouncyBombs(object):
         balls_to_remove = [ball for ball in self._bombs if 
                            ball.body.position.y < 0 
                            or ball.body.position.x > self._screen_size[0]
-                           or ball.body.position.x < 0]
+                           or ball.body.position.x < 0
+                        ]
         for ball in balls_to_remove:
             self._space.remove(ball, ball.body)
             self._bombs.remove(ball)
@@ -213,6 +233,10 @@ class BouncyBombs(object):
         shape.elasticity = 0.9
         shape.collision_type = self._collision_types["enemy"]
         body.velocity = pymunk.Vec2d(-50, 0)
+
+        #After a certain time, speed up enemies to increase difficulty
+        if pygame.time.get_ticks() > 25000:
+            body.velocity = pymunk.Vec2d(-100, 0)
         def _constant_velocity(body, gravity, damping, dt):
             pymunk.Body.update_velocity(body, (0, 900), damping, dt)
         body.velocity_func = _constant_velocity
@@ -231,6 +255,10 @@ class BouncyBombs(object):
         shape.elasticity = 0.9
         shape.collision_type = self._collision_types["enemy"]
         body.velocity = pymunk.Vec2d(-100, 0)
+
+        #After a certain time, speed up enemies to increase difficulty
+        if pygame.time.get_ticks() > 25000:
+            body.velocity = pymunk.Vec2d(-200, 0)
         def _constant_velocity(body, gravity, damping, dt):
             pymunk.Body.update_velocity(body, (0, 0), damping, dt)
         body.velocity_func = _constant_velocity
