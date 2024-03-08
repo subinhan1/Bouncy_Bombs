@@ -22,8 +22,6 @@ class BouncyBombs(object):
         self._clock = pygame.time.Clock()
 
         self._draw_options = pymunk.pygame_util.DrawOptions(self._screen)
-
-        self._add_platform()
         
         self._HP = 100
 
@@ -40,9 +38,11 @@ class BouncyBombs(object):
 
         self._collision_types = {
             "bomb" : 1,
-            "enemy" : 2,
-            "player" : 3
+            "player" : 2,
+            "enemy" : 3
         }
+
+        self._add_platform()
 
     #Main game loop
     def run(self) -> None:
@@ -53,6 +53,7 @@ class BouncyBombs(object):
             self._process_events()
             self._add_player()
             self._update_balls()
+            self._sense_damage()
             self._clear_screen()
             self._draw_objects()
             self._show_instructions()
@@ -67,10 +68,13 @@ class BouncyBombs(object):
     def _add_platform(self) -> None:
         static_body = self._space.static_body
         static_floor = pymunk.Segment(static_body, (0, self._screen_size[1]), (800, self._screen_size[1]), 10)
+        static_wall = pymunk.Segment(static_body, (-50, 0), (-50, self._screen_size[1]), 5)
+        static_wall.collision_type = self._collision_types["player"]
+        static_wall.elasticity = 1
         static_floor.elasticity = 0.90
         static_floor.friction = 0.9
 
-        self._space.add(static_floor)
+        self._space.add(static_floor, static_wall)
 
     def _add_player(self) -> None:
         static_body = self._space.static_body
@@ -78,6 +82,7 @@ class BouncyBombs(object):
         static_player = pymunk.Poly.create_box(static_body, (30, 30))
         static_player.color = pygame.Color("blue")
         static_player.collision_type = self._collision_types["player"]
+        static_player.elasticity = 1.0
         self._space.add(static_player)
 
     #Print basic controls on top left of screen in grey
@@ -105,12 +110,31 @@ class BouncyBombs(object):
                 1,
                 pygame.Color("red")
             ),
-            (self._screen_size[0]-100, 2)
+            (self._screen_size[0]-150, 2)
         )
 
-    def _damage_sensor(self) -> None:
-        """If enemy gets over the x<0 or collides with player, deplete HP"""
-        
+    def _sense_damage(self) -> None:
+        """If enemy gets over the x<0 or collides with player, deplete HP and remove enemies"""
+        h_0 = self._space.add_collision_handler(self._collision_types["player"], self._collision_types["enemy"])
+        def remove_enemy(arbiter, space, data):
+            enemy_shape = arbiter.shapes[1]
+            self._space.remove(enemy_shape, enemy_shape.body)
+            return True
+        h_0.begin = self._damaged
+        h_0.separate = remove_enemy
+
+        h_1 = self._space.add_collision_handler(self._collision_types["bomb"], self._collision_types["enemy"])
+        def remove_bomb_and_enemy(arbiter, space, data):
+            bomb_shape = arbiter.shapes[0]
+            enemy_shape = arbiter.shapes[1]
+            self._space.remove(bomb_shape, bomb_shape.body, enemy_shape, enemy_shape.body)
+            return True
+        h_1.begin = remove_bomb_and_enemy
+
+
+    def _damaged(self, arbiter, space, data):
+        self._HP -= 10
+        return True
     
     #Process key presses/user input
     def _process_events(self) -> None:
@@ -226,6 +250,7 @@ class BouncyBombs(object):
         if self._ticks_to_next_enemy <= 0:
             self._create_air_enemy()
             self._ticks_to_next_enemy = random.randint(250, 400)
+
         
 
     #Clear screen
